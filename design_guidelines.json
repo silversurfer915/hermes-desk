@@ -1,0 +1,116 @@
+{
+  "brand": {
+    "name": "AuraOS",
+    "tagline": "Personal Agent Desktop for Hermes 3",
+    "theme_archetype": "Airy macOS Frosted Glass & Tactical Intelligence",
+    "prohibited_brands": ["Mya", "Stock Hermes Dashboard"]
+  },
+  "layout_architecture": {
+    "structure": "3-Zone Desktop Workspace (1440px - 1920px target)",
+    "container": "relative w-full h-screen overflow-hidden bg-cover bg-center flex flex-col font-sans antialiased select-none",
+    "wallpaper": "https://images.unsplash.com/photo-1620121478247-ec786b9be2fa?crop=entropy&cs=srgb&fm=jpg&q=85",
+    "zones": {
+      "left_rail": {
+        "width": "w-[340px] flex-shrink-0 flex h-full",
+        "icon_bar": "w-[64px] h-full flex flex-col items-center justify-between py-5 bg-white/40 backdrop-blur-2xl border-r border-white/40 shadow-sm z-30",
+        "history_panel": "w-[276px] h-full flex flex-col bg-white/50 backdrop-blur-xl border-r border-white/30 p-4 overflow-y-auto space-y-6"
+      },
+      "center_panel": {
+        "width": "flex-1 h-full flex flex-col relative overflow-hidden bg-white/30 backdrop-blur-md border-r border-white/30 shadow-inner",
+        "sections": ["Header & Status Bar", "Empty State / Conversation Stream", "Structured Attention Feed", "Tool Call Execution Stream", "Result Cards (PDF & Code Diff)", "Composer"]
+      },
+      "right_panel": {
+        "width": "w-[420px] flex-shrink-0 h-full flex flex-col bg-white/60 backdrop-blur-2xl p-5 overflow-y-auto space-y-5 border-l border-white/40 shadow-xl",
+        "sections": ["Contextual Header", "Recipient Chips & Draft Editor", "Action Buttons (Attach, Rewrite, Send Flow)", "Approval Review Box (Approve, Reject, Edit Invalidation)", "Integrations Summary", "Follow-up Quick Composer"]
+      }
+    }
+  },
+  "colors": {
+    "primary": "#2563EB",
+    "primary_hover": "#1D4ED8",
+    "primary_active": "#1E40AF",
+    "surface_glass": "rgba(255, 255, 255, 0.65)",
+    "surface_glass_hover": "rgba(255, 255, 255, 0.82)",
+    "border_glass": "rgba(255, 255, 255, 0.6)",
+    "border_subtle": "rgba(226, 232, 240, 0.8)",
+    "text_dark": "#0F172A",
+    "text_muted": "#475569",
+    "status_queued": "#F59E0B",
+    "status_running": "#3B82F6",
+    "status_waiting": "#8B5CF6",
+    "status_completed": "#10B981",
+    "status_failed": "#EF4444",
+    "status_interrupted": "#64748B",
+    "demo_badge": "#3B82F6"
+  },
+  "typography": {
+    "fonts": {
+      "heading": "'Outfit', 'Plus Jakarta Sans', sans-serif",
+      "body": "'DM Sans', 'Inter', sans-serif",
+      "mono": "'JetBrains Mono', 'Fira Code', monospace"
+    },
+    "hierarchy": {
+      "hero_title": "text-3xl lg:text-4xl font-semibold tracking-tight text-slate-900",
+      "section_heading": "text-xl font-medium tracking-tight text-slate-900",
+      "sub_heading": "text-base font-semibold text-slate-800",
+      "body_text": "text-sm leading-relaxed text-slate-700",
+      "caption": "text-xs font-medium text-slate-500 uppercase tracking-wider"
+    }
+  },
+  "components_spec": {
+    "history_rail": {
+      "path": "src/components/desktop/HistoryRail.js",
+      "grouping": ["Today", "Yesterday", "This Week", "Earlier"],
+      "search": "Filter sessions by text query"
+    },
+    "conversation_panel": {
+      "path": "src/components/desktop/ConversationPanel.js",
+      "empty_state": "Floating orb logo + 'Good morning, Alex / How can I help you today?' + suggestion chips",
+      "attention_view": "Tabs (All, High, Medium, Low) + per-person rows with action triggers"
+    },
+    "tool_execution": {
+      "path": "src/components/desktop/ToolExecutionCard.js",
+      "statuses": ["queued", "running", "waiting_for_approval", "completed", "failed", "interrupted"]
+    },
+    "result_cards": {
+      "pdf_preview": "src/components/desktop/PDFResultCard.js",
+      "code_diff": "src/components/desktop/CodeDiffResultCard.js"
+    },
+    "contextual_right_panel": {
+      "path": "src/components/desktop/ContextualPanel.js",
+      "draft_editor": "Recipient chip list (e.g. #development-team), textarea draft, Attach & Rewrite pills, Send -> Sending -> Sent state machine",
+      "approval_workflow": "Approve / Reject buttons, Edit mode (marking draft edited invalidates prior approval)"
+    },
+    "demo_badge": {
+      "label": "Demo — sample data, nothing is sent",
+      "placement": "Top center status bar + Right panel header",
+      "persistent": true
+    }
+  },
+  "images": {
+    "background_wallpaper": "https://images.unsplash.com/photo-1620121478247-ec786b9be2fa?crop=entropy&cs=srgb&fm=jpg&q=85",
+    "avatars": {
+      "alex": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "sarah": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "elena": "https://images.unsplash.com/photo-1580489944761-15a19d654956?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "marcus": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=entropy&cs=srgb&fm=jpg&q=85"
+    }
+  },
+  "testing_attributes": {
+    "rule": "Every interactive and status element MUST have a unique data-testid attribute in kebab-case",
+    "examples": [
+      "data-testid=\"nav-history-item-1\"",
+      "data-testid=\"priority-tab-high\"",
+      "data-testid=\"action-approve-button\"",
+      "data-testid=\"action-reject-button\"",
+      "data-testid=\"draft-recipient-chip\"",
+      "data-testid=\"draft-send-button\"",
+      "data-testid=\"demo-status-badge\""
+    ]
+  },
+  "accessibility_and_motion": {
+    "contrast": "Ensure WCAG AA compliance (4.5:1 text contrast) over translucent glass backgrounds using solid text shades (#0F172A, #1E293B)",
+    "motion": "Support prefers-reduced-motion, use crisp Framer Motion micro-interactions with smooth ease-out curves",
+    "keyboard_focus": "Explicit ring-2 ring-blue-500 focus-visible styles on all interactive inputs and buttons"
+  }
+}
