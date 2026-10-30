@@ -1,32 +1,19 @@
 import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bot, FileText, FolderOpen, Hash, ListChecks, Mail, Github, Plug, Settings2, ShieldQuestion, SlidersHorizontal, Sunrise, X } from "lucide-react";
+import { Bot, Settings2, ShieldQuestion, SlidersHorizontal, Sunrise, X } from "lucide-react";
 import { useWorkspace } from "@/state/workspace";
-import { FILES } from "@/lib/demo/sampleData";
-import { ModeBadge } from "./StatusPill";
-import { DraftPanel } from "./panels/DraftPanel";
-import { ApprovalPanel } from "./panels/ApprovalPanel";
-import { ActivityPanel, FilePanel, FilesPanel, IntegrationsPanel } from "./panels/MiscPanels";
 import { ConnectionPanel } from "./panels/ConnectionPanel";
 import { LiveRequestPanel } from "./panels/LiveRequestPanel";
 import { BriefingPanel } from "./panels/BriefingPanel";
 import { BotPanel } from "./panels/BotPanel";
 import { SettingsPanel } from "./panels/SettingsPanel";
 
-const CHANNEL_ICON = { slack: Hash, email: Mail, github: Github };
-
 function meta(panel, state) {
   switch (panel.type) {
-    case "draft": { const d = state.drafts[panel.id]; return { title: d?.title, Icon: CHANNEL_ICON[d?.channel] || Mail, body: <DraftPanel id={panel.id} /> }; }
-    case "approval": return { title: "Approval needed", Icon: ShieldQuestion, body: <ApprovalPanel id={panel.id} /> };
     case "live-request": return { title: "Hermes needs your input", Icon: ShieldQuestion, body: <LiveRequestPanel id={panel.id} /> };
     case "briefing": return { title: "Morning briefing", Icon: Sunrise, body: <BriefingPanel /> };
     case "bots": return { title: "Bot Mode", Icon: Bot, body: <BotPanel /> };
     case "settings": return { title: "Hermes Settings", Icon: SlidersHorizontal, body: <SettingsPanel /> };
-    case "file": return { title: FILES[panel.id].name, Icon: FileText, body: <FilePanel id={panel.id} /> };
-    case "files": return { title: "Files", Icon: FolderOpen, body: <FilesPanel /> };
-    case "activity": return { title: "Activity", Icon: ListChecks, body: <ActivityPanel /> };
-    case "integrations": return { title: "Connected services", Icon: Plug, body: <IntegrationsPanel /> };
     default: return { title: "Connection & settings", Icon: Settings2, body: <ConnectionPanel /> };
   }
 }
@@ -61,7 +48,6 @@ export const ContextPanel = () => {
                 <X size={15} />
               </button>
             </header>
-            <div className="mb-4"><ModeBadge testId="context-panel-demo-badge" compact /></div>
             <div key={`${panel.type}-${panel.id}`} className="flex min-h-0 flex-1 flex-col">{m.body}</div>
           </div>
         </motion.aside>

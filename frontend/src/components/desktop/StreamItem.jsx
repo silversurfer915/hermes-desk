@@ -1,8 +1,6 @@
 import { motion } from "framer-motion";
 import { Orb } from "./Orb";
 import { TaskRow } from "./TaskRow";
-import { AttentionSummary } from "./AttentionSummary";
-import { CodeCard, FileCard, IntegrationCard } from "./ResultCards";
 
 const renderText = (text) =>
   text.split(/(`[^`]+`)/).map((p, i) => (p.startsWith("`") ? <code key={i} className="rounded bg-slate-900/5 px-1 font-mono text-[12px]">{p.slice(1, -1)}</code> : p));
@@ -25,10 +23,6 @@ const Body = ({ item }) => {
         </div>
       );
     case "task": return <div className="pl-9"><TaskRow task={item} /></div>;
-    case "attention": return <div className="pl-9"><AttentionSummary item={item} /></div>;
-    case "file": return <div className="pl-9"><FileCard item={item} /></div>;
-    case "code": return <div className="pl-9"><CodeCard item={item} /></div>;
-    case "integration": return <div className="pl-9"><IntegrationCard item={item} /></div>;
     default: return null;
   }
 };

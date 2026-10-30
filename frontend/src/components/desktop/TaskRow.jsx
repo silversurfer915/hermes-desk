@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { CalendarDays, ChevronRight, FileDiff, FilePlus2, FileText, Github, Globe, Hash, Mail, Terminal } from "lucide-react";
-import { useWorkspace } from "@/state/workspace";
 import { StatusPill } from "./StatusPill";
 
 const TOOL_ICONS = { slack: Hash, email: Mail, github: Github, web_search: Globe, write_file: FilePlus2, read_file: FileText, patch: FileDiff, terminal: Terminal, calendar: CalendarDays };
@@ -8,7 +7,6 @@ const TOOL_ICONS = { slack: Hash, email: Mail, github: Github, web_search: Globe
 const duration = (t) => (t.startedAt && t.endedAt ? `${((t.endedAt - t.startedAt) / 1000).toFixed(1)}s` : null);
 
 export const TaskRow = ({ task }) => {
-  const { dispatch } = useWorkspace();
   const [open, setOpen] = useState(task.status === "failed");
   useEffect(() => { if (task.status === "failed") setOpen(true); }, [task.status]);
   const Icon = TOOL_ICONS[task.tool] || Terminal;
@@ -22,11 +20,6 @@ export const TaskRow = ({ task }) => {
           <span className="truncate text-[13px] font-medium text-slate-800">{task.label}</span>
           <span className="shrink-0 font-mono text-[11px] text-slate-400">{task.tool}</span>
         </button>
-        {waiting && (
-          <button data-testid={`task-review-button-${task.id}`} onClick={() => dispatch({ type: "PANEL", panel: { type: "approval", id: task.approvalId } })} className="focus-ring rounded-full bg-violet-600 px-3 py-1 text-[12px] font-medium text-white transition-colors hover:bg-violet-700">
-            Review
-          </button>
-        )}
         <StatusPill status={task.status} testId={`task-status-${task.id}`} />
       </div>
       {open && (

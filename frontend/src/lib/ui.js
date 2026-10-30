@@ -32,3 +32,9 @@ export const greeting = () => {
   const h = new Date().getHours();
   return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 };
+
+export const initialsOf = (name = "") => {
+  const parts = String(name).trim().split(/[\s._-]+/).filter(Boolean);
+  const letters = parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : (parts[0] || "?").slice(0, 2);
+  return letters.toUpperCase();
+};

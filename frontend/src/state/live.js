@@ -22,7 +22,12 @@ export async function api(path, init = {}) {
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw Object.assign(new Error(body.detail || `Request failed (${response.status})`), { status: response.status });
+    const detail = body.detail;
+    const message = detail
+      || (response.status >= 502 && response.status <= 504
+        ? "Hermes isn't reachable right now. Try again in a moment."
+        : `Request failed (${response.status})`);
+    throw Object.assign(new Error(message), { status: response.status });
   }
   return body;
 }
@@ -45,11 +50,11 @@ function snapshotItems(result) {
 export function LiveProvider({ children }) {
   const [conn, setConn] = useState(null);
   const [overview, setOverview] = useState(null);
-  const [mode, setModeState] = useState("demo");
   const [sessions, setSessions] = useState({ list: [], loading: false, error: null });
   const [active, setActive] = useState(null);
   const [requests, setRequests] = useState([]);
   const [liveStatus, setLiveStatus] = useState("offline");
+  const signedIn = !!conn?.signed_in;
 
   const socketRef = useRef(null);
   const readyRef = useRef(false);
@@ -76,11 +81,9 @@ export function LiveProvider({ children }) {
 
   const signedOut = useCallback((message) => {
     selectionRef.current += 1;
-    setModeState("demo");
     setOverview(null);
     commitActive(null);
     setRequests([]);
-    localStorage.setItem("aura-mode", "demo");
     setConn((current) => (current ? { ...current, signed_in: false, user: null } : current));
     if (message) toast.error(message);
   }, [commitActive]);
@@ -324,8 +327,6 @@ export function LiveProvider({ children }) {
   const login = useCallback(async (body) => {
     await api("/login", { method: "POST", body: JSON.stringify(body) });
     await refresh();
-    setModeState("live");
-    localStorage.setItem("aura-mode", "live");
   }, [refresh]);
 
   const logout = useCallback(async () => {
@@ -335,14 +336,6 @@ export function LiveProvider({ children }) {
     await refresh();
   }, [refresh, signedOut]);
 
-  const setMode = useCallback((nextMode) => {
-    selectionRef.current += 1;
-    setModeState(nextMode);
-    commitActive(null);
-    setRequests([]);
-    localStorage.setItem("aura-mode", nextMode);
-  }, [commitActive]);
-
   const clearActive = useCallback(() => {
     selectionRef.current += 1;
     commitActive(null);
@@ -350,13 +343,12 @@ export function LiveProvider({ children }) {
   }, [commitActive]);
 
   useEffect(() => {
-    refresh().then((connection) => {
-      if (connection.signed_in && localStorage.getItem("aura-mode") === "live") setModeState("live");
-    });
+    localStorage.removeItem("aura-mode");
+    refresh();
   }, [refresh]);
-  useEffect(() => { if (mode === "live") loadSessions(); }, [mode, loadSessions]);
+  useEffect(() => { if (signedIn) loadSessions(); }, [signedIn, loadSessions]);
 
-  const liveEnabled = mode === "live" && !!conn?.signed_in;
+  const liveEnabled = signedIn;
   useEffect(() => {
     if (!liveEnabled) {
       socketRef.current?.close();
@@ -422,7 +414,7 @@ export function LiveProvider({ children }) {
   const value = useMemo(() => ({
     conn,
     overview,
-    mode,
+    signedIn,
     sessions,
     active,
     requests,
@@ -438,11 +430,10 @@ export function LiveProvider({ children }) {
     stop,
     respondToRequest,
     rpc,
-    setMode,
     clearActive,
   }), [
-    conn, overview, mode, sessions, active, requests, liveStatus, refresh, login, logout,
-    search, openSession, createSession, loadSessions, send, stop, respondToRequest, rpc, setMode, clearActive,
+    conn, overview, signedIn, sessions, active, requests, liveStatus, refresh, login, logout,
+    search, openSession, createSession, loadSessions, send, stop, respondToRequest, rpc, clearActive,
   ]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

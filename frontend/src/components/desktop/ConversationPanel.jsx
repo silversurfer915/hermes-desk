@@ -3,10 +3,9 @@ import { PlugZap } from "lucide-react";
 import { useWorkspace } from "@/state/workspace";
 import { useLive } from "@/state/live";
 import { Composer } from "./Composer";
-import { EmptyState } from "./EmptyState";
 import { StreamItem } from "./StreamItem";
-import { ModeBadge } from "./StatusPill";
 import { Orb } from "./Orb";
+import { LoginForm } from "./panels/LoginForm";
 
 const Header = ({ title }) => {
   const { dispatch } = useWorkspace();
@@ -15,7 +14,6 @@ const Header = ({ title }) => {
   return (
     <header className="flex items-center gap-3 px-7 pt-5 pb-3">
       <h2 data-testid="conversation-title" className="min-w-0 flex-1 truncate font-heading text-lg font-medium text-slate-900">{title}</h2>
-      <ModeBadge testId="demo-status-badge" />
       <button data-testid="connection-status-chip" onClick={() => dispatch({ type: "PANEL", panel: { type: "connection" } })}
         className="focus-ring glass-chip flex min-h-11 items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium text-slate-600 hover:bg-white/90">
         <PlugZap size={12} className={conn?.signed_in ? "text-emerald-600" : ""} /> {who}
@@ -41,7 +39,7 @@ const Stream = ({ items, testId = "conversation-stream", children }) => {
 
 const Note = ({ children, testId, tone = "text-slate-500" }) => <p data-testid={testId} className={`py-10 text-center text-sm ${tone}`}>{children}</p>;
 
-const LiveEmpty = () => (
+const ChatEmpty = () => (
   <div data-testid="live-empty-state" className="flex flex-1 flex-col items-center justify-center px-8 text-center">
     <Orb size={76} />
     <h1 className="mt-6 font-heading text-3xl font-medium tracking-tight text-slate-900">Your Hermes, live</h1>
@@ -50,7 +48,7 @@ const LiveEmpty = () => (
 );
 
 const LiveBody = ({ active }) => {
-  if (!active) return <LiveEmpty />;
+  if (!active) return <ChatEmpty />;
   return (
     <Stream items={active.items} testId="live-conversation-stream">
       {active.loading && <Note testId="live-loading">Loading transcript from Hermes…</Note>}
@@ -60,26 +58,46 @@ const LiveBody = ({ active }) => {
   );
 };
 
+const SignInGate = () => {
+  const { conn, refresh } = useLive();
+  return (
+    <div data-testid="sign-in-gate" className="flex flex-1 flex-col items-center justify-center px-8 text-center">
+      <Orb size={76} />
+      <h1 className="mt-6 font-heading text-3xl font-medium tracking-tight text-slate-900">Connect to your Hermes</h1>
+      <p className="mt-2 max-w-sm text-sm leading-relaxed text-slate-500">Sign in with your Hermes account to chat, see your morning briefing, and manage your bots.</p>
+      <div className="mt-6 w-full max-w-sm text-left">
+        {!conn && <p className="text-center text-sm text-slate-500">Checking your Hermes…</p>}
+        {conn && !conn.configured && <p className="text-center text-sm text-slate-600">The Hermes address isn't set up yet.</p>}
+        {conn && conn.configured && !conn.reachable && (
+          <div className="glass-row rounded-2xl p-4 text-center">
+            <p className="text-sm text-slate-600">Can't reach your Hermes right now{conn.error ? ` (${conn.error})` : ""}.</p>
+            <button data-testid="connection-retry-button" onClick={refresh} className="focus-ring mt-2 text-[12px] font-medium text-blue-700">Try again</button>
+          </div>
+        )}
+        {conn && conn.configured && conn.reachable && <LoginForm conn={conn} />}
+      </div>
+    </div>
+  );
+};
+
 export const ConversationPanel = () => {
-  const { state, dispatch, send, stop } = useWorkspace();
+  const { dispatch } = useWorkspace();
   const live = useLive();
-  const isLive = live.mode === "live";
-  const session = state.sessions.find((s) => s.id === state.activeId);
-  const title = isLive ? live.active?.title || "Your Hermes chats" : session ? session.title : "New chat";
-  const otherRunning = state.busy && state.busySid !== state.activeId;
+  const signedIn = live.signedIn;
   const latestRequestId = live.requests[live.requests.length - 1]?.id;
   useEffect(() => {
-    if (isLive && latestRequestId) dispatch({ type: "PANEL", panel: { type: "live-request", id: latestRequestId } });
-  }, [isLive, latestRequestId, dispatch]);
+    if (signedIn && latestRequestId) dispatch({ type: "PANEL", panel: { type: "live-request", id: latestRequestId } });
+  }, [signedIn, latestRequestId, dispatch]);
+  const title = signedIn ? live.active?.title || "Your Hermes chats" : "Hermes Desk";
   const sendLive = (text) => live.send(text).catch(() => null);
   const stopLive = () => live.stop().catch(() => null);
 
   return (
     <main data-testid="conversation-panel" className="conversation-panel glass-panel flex min-w-0 flex-1 flex-col overflow-hidden rounded-[28px]">
       <Header title={title} />
-      {isLive ? <LiveBody active={live.active} /> : session ? <Stream items={session.items} /> : <EmptyState onPick={(t) => send(t)} />}
-      <div className="px-6 pb-5 pt-2">
-        {isLive ? (
+      {signedIn ? <LiveBody active={live.active} /> : <SignInGate />}
+      {signedIn && (
+        <div className="px-6 pb-5 pt-2">
           <Composer
             testId="composer"
             busy={!!live.active?.busy}
@@ -88,13 +106,9 @@ export const ConversationPanel = () => {
             onSend={sendLive}
             onStop={live.active?.runtimeId ? stopLive : null}
           />
-        ) : (
-          <Composer onSend={send} onStop={state.busySid === state.activeId ? stop : null} busy={state.busy} placeholder={otherRunning ? "Another chat is still running…" : "Ask anything"} />
-        )}
-        <p className="mt-2 text-center text-[11px] text-slate-500">
-          {isLive ? "Live messages go to your Hermes. The connection pauses when this tab is hidden." : "Demo mode plays sample scenarios. Nothing reaches Hermes or any connected service."}
-        </p>
-      </div>
+          <p className="mt-2 text-center text-[11px] text-slate-500">Messages go to your Hermes. The connection pauses when this tab is hidden.</p>
+        </div>
+      )}
     </main>
   );
 };

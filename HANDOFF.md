@@ -25,7 +25,12 @@ Owner-confirmed scope rules (keep all of them):
 - Backend unit suites: `tests/test_hermes_ws_unit.py` and `tests/test_hermes_advanced_unit.py`, 24 passed
   in a fresh venv (`pytest-asyncio` added to `requirements.txt`).
 - Frontend: `npm ci --legacy-peer-deps` from the regenerated lockfile (official npm registry) and
-  `craco build` both succeed. The app renders in the demo shell (checked at 1440x900 in Chromium).
+  `craco build` both succeed. The signed-out and signed-in shells render at 1440x900 in Chromium (signed-in
+  checked against mocked REST responses).
+- Demo mode has been removed. The app is live-only: signed out it shows a sign-in gate, and signed in it shows your Hermes chats.
+- Review triage (2026-10-30 PDF): confirmed demo fixtures, raw 502 copy, and the hard-coded demo badge/avatars — all
+  resolved by the demo removal plus a friendlier 502–504 message in `live.js`. Tablet (≤899px) now opens the context
+  panel near full-screen instead of a 420px sheet. Still open: write-control policy in live Settings (owner decision).
 - The app's read-only sign-in flow against the live Hermes server works end to end through the BFF:
   connection status, sign-in, overview, bots (profiles, active profile, cron job list), sessions list,
   and sign-out. No chats, sends, schedule actions, or settings were changed.
@@ -44,7 +49,8 @@ Owner-confirmed scope rules (keep all of them):
 - Group room creation and sending have not been run against the live server. Validation is against the
   server source only, and send is gated behind the server's advertised capability.
 - Morning briefing and Bot Mode screens have not been rendered with live data.
-- The public app has only been checked in demo mode.
+- The public app has been checked signed out, and the signed-in shell has been checked with mocked data only.
+  The live WebSocket path has not been exercised in a browser against the real server.
 - `frontend/public/` has no favicon, so the browser's `/favicon.ico` request returns 404.
 
 ### Integration suites (run against an isolated stand-in, never the live server)

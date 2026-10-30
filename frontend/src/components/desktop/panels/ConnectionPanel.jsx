@@ -17,7 +17,7 @@ const Row = ({ label, value, testId }) => (
 );
 
 const Overview = () => {
-  const { overview: o, mode, setMode, logout } = useLive();
+  const { overview: o, logout } = useLive();
   if (!o) return <Card title="Signed in" testId="connection-overview">Loading details from your server…</Card>;
   return (
     <Card title={`Signed in as ${o.user?.display_name || o.user?.email || o.user?.user_id}`} testId="connection-overview">
@@ -28,10 +28,7 @@ const Overview = () => {
       <Row label="Profiles on server" value={o.profiles?.length ? o.profiles.join(", ") : null} testId="overview-profiles" />
       <Row label="Gateway" value={o.gateway_state || (o.gateway_running ? "running" : "stopped")} testId="overview-gateway" />
       <p className="mt-1 text-[11px] text-slate-500">All values are read from your server right now, not assumed.</p>
-      <div className="mt-3 flex justify-between">
-        <button data-testid="mode-toggle-button" onClick={() => setMode(mode === "live" ? "demo" : "live")} className="focus-ring rounded-full bg-blue-600 px-4 py-2 text-[12px] font-medium text-white hover:bg-blue-700">
-          {mode === "live" ? "Switch to Demo" : "Show my Hermes data"}
-        </button>
+      <div className="mt-3 flex justify-end">
         <button data-testid="hermes-logout-button" onClick={logout} className="focus-ring glass-chip rounded-full px-4 py-2 text-[12px] text-slate-700 hover:bg-white/90">Sign out</button>
       </div>
     </Card>
@@ -60,13 +57,8 @@ const Live = () => {
 };
 
 export const ConnectionPanel = () => {
-  const { mode, liveStatus } = useLive();
   return (
     <div data-testid="connection-panel" className="space-y-4 overflow-y-auto text-[13px] text-slate-700">
-      <Card title={`Mode: ${mode === "live" ? "Live" : "Demo"}`} testId="connection-mode">
-        <p className="text-slate-600">{mode === "live" ? `Messages and approvals go directly to your Hermes. Live status: ${liveStatus}.` : "Chats, tasks and drafts are sample data. Nothing is sent anywhere."}</p>
-        {mode === "live" && <p className="mt-2 text-[11px] text-slate-500">The socket closes in a hidden tab and reconnects only when you return.</p>}
-      </Card>
       <Live />
       <p className="text-[11px] text-slate-500">Connection approach follows the Hermes dashboard's own API and auth (MIT, © Nous Research), commit ef35e8b.</p>
     </div>

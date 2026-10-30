@@ -1,4 +1,4 @@
-# Backend API tests: health root, Hermes connection (demo mode), status CRUD
+# Backend API tests: health root, Hermes connection (signed out), status CRUD
 import os
 import requests
 import pytest
@@ -20,8 +20,8 @@ def test_root(api):
     assert r.json()["message"] == "Hello World"
 
 
-# Hermes connection - demo mode
-def test_hermes_connection_demo(api):
+# Hermes connection (signed out)
+def test_hermes_connection_signed_out(api):
     r = api.get(f"{BASE_URL}/api/hermes/connection")
     assert r.status_code == 200
     data = r.json()

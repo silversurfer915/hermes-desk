@@ -68,6 +68,19 @@ body { overflow: hidden; }
   .context-inner { width: 100% !important; }
 }
 
+/* Tablet band: the context sheet goes near full-screen before it crowds the conversation. */
+@media (min-width: 768px) and (max-width: 899px) {
+  .context-panel {
+    top: max(12px, env(safe-area-inset-top));
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    width: auto !important;
+    border-radius: 24px;
+  }
+  .context-inner { width: 100% !important; }
+}
+
 @media (max-width: 767px) {
   .desktop-shell {
     gap: 0;
@@ -181,5 +194,4 @@ body { overflow: hidden; }
 }
 
 @media (max-width: 390px) {
-  .conversation-panel > header [data-testid="demo-status-badge"] { display: none; }
 }
