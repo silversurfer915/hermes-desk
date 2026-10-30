@@ -160,7 +160,13 @@ async def _pump_upstream(ws: WebSocket, up) -> None:
                         interval = HEARTBEAT_INTERVAL if interval else None
                     if isinstance(interval, (int, float)) and interval > 0 and heartbeat_task is None:
                         heartbeat_task = asyncio.create_task(_heartbeat(up, max(5.0, float(interval))))
-            await ws.send_text(text)
+                    await ws.send_text(text)
+                    continue
+            if isinstance(frame, dict) and frame.get("method") == "ping" and _valid_id(frame.get("id")):
+                # Upstream transport keepalive: the bridge answers it and keeps the browser
+                # wire clean of non-user questions (the UI only renders real requests).
+                await up.send(json.dumps({"jsonrpc": "2.0", "id": frame["id"], "result": {"ok": True}}))
+                continue
     finally:
         if heartbeat_task:
             heartbeat_task.cancel()

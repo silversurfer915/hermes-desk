@@ -9,15 +9,23 @@ from pymongo import MongoClient
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
 H = f"{BASE_URL}/api/hermes"
-USER, PW, TOKEN = "sam", "correct-horse", "fake-session-token-123"
+# Unique per-import USER suffix: the fake accepts any "sam-*" so concurrent workers and
+# consecutive reruns never share a per-username rate-limit bucket.
+USER, PW, TOKEN = f"sam-{uuid.uuid4().hex[:8]}", "correct-horse", "fake-session-token-123"
 
 
 def _mongo():
-    env = {}
-    for line in open("/app/backend/.env"):
-        if "=" in line:
-            k, v = line.strip().split("=", 1)
-            env[k] = v.strip('"')
+    """Mongo for assertions: explicit env, else this repo's backend/.env (also the container path
+    /app/backend/.env when the suite runs inside the image)."""
+    env = {"MONGO_URL": os.environ.get("MONGO_URL", ""), "DB_NAME": os.environ.get("DB_NAME", "")}
+    for path in ("/app/backend/.env", os.path.join(os.path.dirname(__file__), os.pardir, ".env")):
+        try:
+            for line in open(path):
+                if "=" in line:
+                    k, v = line.strip().split("=", 1)
+                    env.setdefault(k.strip(), v.strip().strip('"'))
+        except OSError:
+            continue
     return MongoClient(env["MONGO_URL"])[env["DB_NAME"]]
 
 
@@ -92,8 +100,9 @@ def test_password_login_cookie_and_no_leak(pw_session):
     sc = r.headers.get("set-cookie", "")
     assert sc.startswith("aura_session=")
     low = sc.lower()
-    # backend sets SameSite=Lax (verified on :8001); the preview ingress rewrites it to SameSite=None; Partitioned
-    assert "httponly" in low and "secure" in low and "path=/api" in low and "samesite=" in low
+    # Backend sets SameSite=Lax; Secure unless the deployment opted into plain HTTP.
+    assert "httponly" in low and "path=/api" in low and "samesite=" in low
+    assert ("secure" in low) == (os.environ.get("AURA_INSECURE_COOKIES", "") != "1")
     assert "hermes_session" not in sc
     assert [k for k in s.cookies.keys() if k != "__cf_bm"] == ["aura_session"]
     c = requests.get(f"{H}/connection", cookies={"aura_session": s.cookies["aura_session"]}).json()
@@ -163,9 +172,10 @@ def test_logout_invalidates():
     assert r.status_code == 401
 
 
-# Rate limit: 6th attempt within a minute from same IP -> 429
+# Rate limit: 6th attempt within a minute from same IP -> 429. A throwaway username keeps the
+# shared per-username bucket (filled by the other tests' "sam" logins) out of the count.
 def test_rate_limit_429():
     ip = _ip()
-    codes = [_login({"method": "password", "provider": "basic", "username": USER, "password": "bad"}, ip)[1].status_code for _ in range(6)]
+    codes = [_login({"method": "password", "provider": "basic", "username": f"nobody-{uuid.uuid4().hex[:8]}", "password": "bad"}, ip)[1].status_code for _ in range(6)]
     assert codes[:5] == [401] * 5
     assert codes[5] == 429

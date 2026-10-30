@@ -18,6 +18,9 @@ from pydantic import BaseModel, Field, SecretStr
 COOKIE = "aura_session"
 SESSION_DAYS = 7
 TIMEOUT = httpx.Timeout(10.0, connect=6.0)
+# Never set in production: opt-in plain-HTTP deployments/self-hosted LAN setups skip the
+# Secure attribute on the app cookie (browsers require HTTPS for Secure anyway).
+COOKIE_SECURE = os.environ.get("AURA_INSECURE_COOKIES", "") != "1"
 router = APIRouter(prefix="/api/hermes")
 _fernet = Fernet(os.environ["AURA_UPSTREAM_KEY"].encode())
 _pepper = os.environ["AURA_SESSION_PEPPER"]
@@ -273,7 +276,7 @@ async def login(body: LoginBody, request: Request, response: Response):
         "_id": _digest(raw), "auth": _encrypt(auth), "method": body.method, "user": user,
         "created_at": now, "expires_at": now + timedelta(days=SESSION_DAYS)})
     response.set_cookie(COOKIE, raw, max_age=SESSION_DAYS * 86400, path="/api",
-                        secure=True, httponly=True, samesite="lax")
+                        secure=COOKIE_SECURE, httponly=True, samesite="lax")
     return {"ok": True, "user": user}
 
 
@@ -292,7 +295,7 @@ async def logout(request: Request, response: Response):
                 except httpx.HTTPError:
                     pass
             await db.hermes_app_sessions.delete_one({"_id": doc["_id"]})
-    response.delete_cookie(COOKIE, path="/api", secure=True, httponly=True, samesite="lax")
+    response.delete_cookie(COOKIE, path="/api", secure=COOKIE_SECURE, httponly=True, samesite="lax")
     return {"ok": True}
 
 
@@ -380,6 +383,40 @@ _CONFIG_SECTIONS = {
 }
 
 
+async def _hermes_get_many(request: Request, calls: list[tuple[str, Optional[dict]]]):
+    """Read several paths under one session load / cookie-rotation pass (review #9: tab latency)."""
+    raw = request.cookies.get(COOKIE)
+    lock = _locks.setdefault(_digest(raw), asyncio.Lock()) if raw else asyncio.Lock()
+    async with lock:
+        sid_hash, auth, _ = await _load_session(request)
+        url = _require_url()
+        async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=False) as c:
+            try:
+                responses = await asyncio.gather(
+                    *(c.get(f"{url}{path}", params=params, headers=_upstream_headers(auth))
+                      for path, params in calls)
+                )
+            except httpx.HTTPError:
+                raise HTTPException(502, "Can't reach your Hermes server.")
+        if "cookies" in auth:
+            rotated = auth["cookies"]
+            for r in responses:
+                rotated = _merge_set_cookies(r, rotated)
+            if rotated != auth["cookies"]:
+                await db.hermes_app_sessions.update_one(
+                    {"_id": sid_hash}, {"$set": {"auth": _encrypt({"cookies": rotated})}}
+                )
+        for r in responses:
+            if _is_session_expired(r) or r.status_code in (302, 303, 307):
+                await db.hermes_app_sessions.delete_one({"_id": sid_hash})
+                raise HTTPException(401, "Hermes ended this sign-in. Please sign in again.")
+            if r.status_code == 404:
+                raise HTTPException(404, "Not found on your Hermes server.")
+            if r.status_code >= 400:
+                raise HTTPException(502, f"Hermes returned an error ({r.status_code}).")
+        return [r.json() for r in responses]
+
+
 @router.get("/settings/{section}")
 async def settings_section(request: Request, section: Literal[
     "skills", "memory", "models", "subagents", "tools", "mcp", "terminal", "context", "schedules"
@@ -389,9 +426,10 @@ async def settings_section(request: Request, section: Literal[
         data = await _hermes_get(request, "/api/skills", params)
         return {"section": section, "skills": _items(data, "skills", "items")}
     if section == "models":
-        info = await _hermes_get(request, "/api/model/info", params)
-        options = await _hermes_get(request, "/api/model/options", params)
-        auxiliary = await _hermes_get(request, "/api/model/auxiliary", params)
+        (info, options, auxiliary) = await _hermes_get_many(
+            request,
+            [("/api/model/info", params), ("/api/model/options", params), ("/api/model/auxiliary", params)],
+        )
         return {"section": section, "info": info, "options": options, "auxiliary": auxiliary}
     if section == "mcp":
         return await _hermes_get(request, "/api/mcp/servers", params)

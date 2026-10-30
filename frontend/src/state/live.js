@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { HermesSocket } from "@/lib/hermes/HermesSocket";
-import { deltaIdentity, reduceLiveEvent, reduceRequests } from "@/lib/hermes/liveEvents";
+import { frameIdentity, reduceLiveEvent, reduceRequests } from "@/lib/hermes/liveEvents";
 import { mapMessages, mapSession } from "@/lib/hermes/liveMap";
 
 const Ctx = createContext(null);
@@ -197,7 +197,7 @@ export function LiveProvider({ children }) {
     if (frame.method === "event" && frame.params?.type === "sessions.changed") {
       loadSessions();
     }
-    const identity = deltaIdentity(frame);
+    const identity = frameIdentity(frame);
     if (identity) {
       if (seenDeltasRef.current.has(identity)) return;
       seenDeltasRef.current.add(identity);
@@ -285,6 +285,7 @@ export function LiveProvider({ children }) {
       error: null,
     };
     commitActive(optimistic);
+    const pendingId = optimistic.items[optimistic.items.length - 1]?.id;
     try {
       await socketRef.current.call("prompt.submit", {
         session_id: current.runtimeId,
@@ -292,10 +293,21 @@ export function LiveProvider({ children }) {
         ...(current.profile ? { profile: current.profile } : {}),
       });
     } catch (error) {
-      patchActive(current.id, { busy: false, error: error.message });
+      // The submit never landed: drop the optimistic bubble and show why, keeping the text in the composer.
+      setActive((previous) => {
+        if (!previous || previous.id !== current.id) return previous;
+        const next = {
+          ...previous,
+          busy: false,
+          error: error.message,
+          items: previous.items.filter((item) => item.id !== pendingId),
+        };
+        activeRef.current = next;
+        return next;
+      });
       throw error;
     }
-  }, [commitActive, createSession, patchActive]);
+  }, [commitActive, createSession]);
 
   const stop = useCallback(async () => {
     const current = activeRef.current;
@@ -325,7 +337,19 @@ export function LiveProvider({ children }) {
   }, []);
 
   const login = useCallback(async (body) => {
-    await api("/login", { method: "POST", body: JSON.stringify(body) });
+    const attempt = () => api("/login", { method: "POST", body: JSON.stringify(body) });
+    try {
+      await attempt();
+    } catch (error) {
+      // Gateway 5xx is usually transient; one spaced retry turns the review's flaky first upload into a pass.
+      if (error.status >= 502 && error.status <= 504) {
+        toast.info("Hermes isn't reachable from here — retrying once…");
+        await new Promise((resolve) => setTimeout(resolve, 900));
+        await attempt();
+      } else {
+        throw error;
+      }
+    }
     await refresh();
   }, [refresh]);
 

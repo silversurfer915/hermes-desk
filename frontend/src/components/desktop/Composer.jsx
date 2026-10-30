@@ -3,11 +3,20 @@ import { ArrowUp, Paperclip, Square } from "lucide-react";
 
 export const Composer = ({ onSend, onStop, busy, disabled = false, placeholder = "Ask anything", testId = "composer", compact = false }) => {
   const [text, setText] = useState("");
-  const submit = () => {
-    const v = text.trim();
-    if (!v || busy) return;
-    onSend(v);
+  const [sending, setSending] = useState(false);
+  const submit = async () => {
+    const value = text.trim();
+    if (!value || busy || sending || disabled) return;
     setText("");
+    setSending(true);
+    try {
+      await onSend(value);
+    } catch {
+      // Send failed: restore the draft so the message is never lost; the stream shows the error.
+      setText(value);
+    } finally {
+      setSending(false);
+    }
   };
   return (
     <div data-testid={testId} className="glass-inset rounded-[22px] px-4 pt-3 pb-2.5 transition-shadow duration-200 focus-within:shadow-[0_0_0_3px_rgba(37,99,235,0.18)]">
@@ -32,12 +41,12 @@ export const Composer = ({ onSend, onStop, busy, disabled = false, placeholder =
         >
           <Paperclip size={16} />
         </button>}
-        {busy && onStop ? (
+        {(busy || (sending && onStop)) && onStop ? (
           <button data-testid={`${testId}-stop-button`} onClick={onStop} aria-label="Stop" className="focus-ring flex h-11 items-center gap-1.5 rounded-full bg-slate-900 px-4 text-xs font-medium text-white transition-transform duration-150 hover:scale-[1.03]">
             <Square size={11} fill="currentColor" /> Stop
           </button>
         ) : (
-          <button data-testid={`${testId}-send-button`} onClick={submit} disabled={!text.trim() || busy} aria-label="Send" className="focus-ring flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-white transition-[background-color,transform,opacity] duration-150 hover:scale-105 hover:bg-blue-700 disabled:opacity-40 disabled:hover:scale-100">
+          <button data-testid={`${testId}-send-button`} onClick={submit} disabled={sending || !text.trim() || busy} aria-label="Send" className="focus-ring flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-white transition-[background-color,transform,opacity] duration-150 hover:scale-105 hover:bg-blue-700 disabled:opacity-40 disabled:hover:scale-100">
             <ArrowUp size={16} />
           </button>
         )}

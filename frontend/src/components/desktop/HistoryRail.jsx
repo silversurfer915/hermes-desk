@@ -52,18 +52,30 @@ export const HistoryRail = ({ onNavigate }) => {
         {signedIn && groups.length === 0 && !live.sessions.loading && (
           <p data-testid="history-empty" className="px-2 text-sm text-slate-500">{q ? `No chats match “${q}”.` : "No chats in this Hermes profile yet."}</p>
         )}
-        {groups.map(([label, list]) => (
-          <section key={label} data-testid={`history-group-${label.toLowerCase().replace(" ", "-")}`}>
-            <h3 className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</h3>
-            {list.map((s) => (
-              <button key={s.id} data-testid={`history-item-${s.id}`} onClick={() => pick(s)} title={s.title}
-                className={`focus-ring block min-h-11 w-full truncate rounded-xl px-2 py-1.5 text-left text-[13px] transition-colors duration-150 ${live.active?.id === s.id ? "bg-white/85 font-medium text-slate-900 shadow-sm" : "text-slate-700 hover:bg-white/60"}`}>
-                {s.isActive && <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-blue-500 align-middle" aria-label="active" />}
-                {s.title}
-              </button>
-            ))}
-          </section>
-        ))}
+        {groups.map(([label, list]) => {
+          // Collapse consecutive automation runs that share a truncated title (review #8).
+          const rows = [];
+          list.forEach((session) => {
+            const previous = rows[rows.length - 1];
+            if (previous && previous.session.title === session.title) previous.count += 1;
+            else rows.push({ session, count: 1 });
+          });
+          const when = (session) => new Date(session.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          return (
+            <section key={label} data-testid={`history-group-${label.toLowerCase().replace(" ", "-")}`}>
+              <h3 className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</h3>
+              {rows.map(({ session, count }) => (
+                <button key={session.id} data-testid={`history-item-${session.id}`} onClick={() => pick(session)} title={session.title}
+                  className={`focus-ring flex min-h-11 w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left text-[13px] transition-colors duration-150 ${live.active?.id === session.id ? "bg-white/85 font-medium text-slate-900 shadow-sm" : "text-slate-700 hover:bg-white/60"}`}>
+                  {session.isActive && <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" aria-label="active" />}
+                  <span className="min-w-0 flex-1 truncate">{session.title}</span>
+                  {count > 1 && <span className="shrink-0 rounded-full bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">×{count}</span>}
+                  <span className="shrink-0 text-[10px] text-slate-400">{when(session)}</span>
+                </button>
+              ))}
+            </section>
+          );
+        })}
       </div>
     </aside>
   );

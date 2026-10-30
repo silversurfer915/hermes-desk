@@ -137,7 +137,7 @@ export const BotPanel = () => {
         <section className="glass-row rounded-2xl p-4">
           <h3 className="font-medium text-slate-900">{selectedRoom.name}</h3>
           <div className="my-3 max-h-64 space-y-2 overflow-y-auto">
-            {log.map((entry, index) => <div key={entry.id || entry.seq || index} className="rounded-xl bg-white/60 p-2 text-[12px]"><span className="mr-2 font-medium">{entry.actor?.handle || entry.profile || entry.role || "Hermes"}</span><span className="whitespace-pre-wrap">{entryText(entry) || entry.kind}</span></div>)}
+            {log.map((entry, index) => <div key={entry.id || entry.event_id || entry.seq || index} className="rounded-xl bg-white/60 p-2 text-[12px]"><span className="mr-2 font-medium">{entry.actor?.handle || entry.actor?.id || entry.profile || entry.role || "Hermes"}</span><span className="whitespace-pre-wrap">{entryText(entry) || entry.kind}</span></div>)}
             {!log.length && <p className="text-[12px] text-slate-500">{busy ? "Loading room…" : "No room messages yet."}</p>}
           </div>
           {canSend && (

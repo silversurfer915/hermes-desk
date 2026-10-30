@@ -27,6 +27,13 @@ export class HermesSocket {
           error.code = frame.error.code;
           pending.reject(error);
         } else pending.resolve(frame.result);
+        return; // our own response frames carry no events
+      }
+      if (frame?.id !== undefined && frame?.method === "ping") {
+        // Hermes transport keepalive (server->client request). Answer it here and never
+        // surface it as a question: requests the UI renders, pings the socket handles.
+        this.socket.send(JSON.stringify({ jsonrpc: "2.0", id: frame.id, result: { ok: true } }));
+        return;
       }
       this.onFrame?.(frame);
     };

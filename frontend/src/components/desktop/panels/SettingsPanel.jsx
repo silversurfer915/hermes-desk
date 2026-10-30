@@ -8,6 +8,9 @@ const SECTIONS = [
   ["terminal", "Terminal"], ["context", "Context"], ["schedules", "Schedules"],
 ];
 
+// Review #9: cache the last-good payload per tab and render instantly while it refreshes.
+const SECTION_CACHE = new Map();
+
 const modelChoices = (options) => (options?.providers || []).flatMap((provider) =>
   (provider.models || []).map((entry) => {
     const model = typeof entry === "string" ? entry : entry.id || entry.name || entry.model;
@@ -120,15 +123,22 @@ export const SettingsPanel = () => {
   const [section, setSection] = useState("skills");
   const [state, setState] = useState({ loading: true, data: null, error: null });
   const load = useCallback(async () => {
-    setState((current) => ({ ...current, loading: true, error: null }));
-    try { setState({ loading: false, data: await api(`/settings/${section}`), error: null }); }
-    catch (error) { setState({ loading: false, data: null, error: error.message }); }
+    const cached = SECTION_CACHE.get(section);
+    if (cached) setState({ loading: false, data: cached, error: null });
+    else setState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const data = await api(`/settings/${section}`);
+      SECTION_CACHE.set(section, data);
+      setState({ loading: false, data, error: null });
+    } catch (error) {
+      setState({ loading: false, data: cached || null, error: error.message });
+    }
   }, [section]);
   useEffect(() => { load(); }, [load]);
   return (
     <div data-testid="settings-panel" className="flex min-h-0 flex-1 flex-col">
-      <div className="scroll-soft -mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-2">
-        {SECTIONS.map(([id, label]) => <button key={id} data-testid={`settings-tab-${id}`} onClick={() => setSection(id)} className={`focus-ring min-h-11 shrink-0 rounded-xl px-3 text-[12px] font-medium ${section === id ? "bg-blue-600 text-white" : "glass-chip text-slate-600"}`}>{label}</button>)}
+      <div data-testid="settings-tabs" className="tab-strip -mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-2">
+        {SECTIONS.map(([id, label]) => <button key={id} data-testid={`settings-tab-${id}`} onClick={() => setSection(id)} className={`focus-ring min-h-11 shrink-0 rounded-xl px-2.5 text-[12px] font-medium ${section === id ? "bg-blue-600 text-white" : "glass-chip text-slate-600"}`}>{label}</button>)}
       </div>
       <div className="scroll-soft min-h-0 flex-1 overflow-y-auto pr-1">
         {state.loading && <p className="py-8 text-center text-sm text-slate-500">Reading {section} from Hermes…</p>}

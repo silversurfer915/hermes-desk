@@ -13,7 +13,7 @@ H = f"{BASE_URL}/api/hermes"
 def test_parallel_calls_then_after_grace():
     s = requests.Session()
     ip = f"10.9.{uuid.uuid4().int % 250}.{uuid.uuid4().int % 250}"
-    r = s.post(f"{H}/login", json={"method": "password", "provider": "basic", "username": "sam", "password": "correct-horse"},
+    r = s.post(f"{H}/login", json={"method": "password", "provider": "basic", "username": f"sam-{uuid.uuid4().hex[:8]}", "password": "correct-horse"},
                headers={"X-Forwarded-For": ip})
     assert r.status_code == 200
     raw = s.cookies["aura_session"]

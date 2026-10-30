@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { PlugZap } from "lucide-react";
+import { toast } from "sonner";
 import { useWorkspace } from "@/state/workspace";
 import { useLive } from "@/state/live";
 import { Composer } from "./Composer";
@@ -89,8 +90,8 @@ export const ConversationPanel = () => {
     if (signedIn && latestRequestId) dispatch({ type: "PANEL", panel: { type: "live-request", id: latestRequestId } });
   }, [signedIn, latestRequestId, dispatch]);
   const title = signedIn ? live.active?.title || "Your Hermes chats" : "Hermes Desk";
-  const sendLive = (text) => live.send(text).catch(() => null);
-  const stopLive = () => live.stop().catch(() => null);
+  const sendLive = (text) => live.send(text);
+  const stopLive = () => live.stop().catch((error) => toast.error(error.message));
 
   return (
     <main data-testid="conversation-panel" className="conversation-panel glass-panel flex min-w-0 flex-1 flex-col overflow-hidden rounded-[28px]">
