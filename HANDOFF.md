@@ -1,81 +1,92 @@
 # Hermes Desk - Project Handoff
 
-## What this is
-A personal-agent desktop web app ("Hermes Desk") that connects to the owner's self-hosted
-Hermes instance and drives it through a frosted-glass desktop UI. Built on the Emergent
-builder; the previous builder session ended (credits exhausted) mid-implementation. This
-package is the extracted source (no secrets), plus design reference material and the state
-of play below. Continue this project; do NOT rebuild from scratch.
+Hermes Desk is a personal web app: a calm, frosted-glass desktop UI for the owner's self-hosted
+Hermes agent server. The app talks to Hermes only through its FastAPI backend (BFF). Upstream
+credentials and session tokens never reach the browser, the frontend, storage, or logs.
 
-## Source inventory
-- backend/  FastAPI: server.py (app + status CRUD), hermes_bff.py (upstream BFF: auth against
-  the Hermes dashboard, session token wrapped with Fernet + pepper), hermes_ws.py (UNFINISHED:
-  WebSocket bridge for live chat streaming - was being written when the previous builder
-  stopped), tests/ (pytest suite incl. fake_hermes.py mock upstream), requirements.txt,
-  pytest.ini.
-- frontend/ CRA + Tailwind + shadcn: desktop UI under src/components/desktop/ (IconRail,
-  HistoryRail, ConversationPanel, Composer, ContextPanel, panels/{ApprovalPanel,
-  ConnectionPanel, DraftPanel, LoginForm, MiscPanels, useDraft}), state/{workspace.js
-  (mock state), live.js (LIVE data layer, partially wired)}, lib/, hooks/, configs.
-  NOTE: src/components/ui/* (stock shadcn boilerplate) is NOT included - regenerate via
-  components.json (`npx shadcn@latest init` / add) or copy from any shadcn scaffold.
-  yarn.lock not included.
-- design_guidelines.json  Builder-generated design notes derived from the owner's reference
-  video. Treat as a starting point, not gospel: the frames are the primary direction.
-- design-frames/  8 reference frames from the owner's design video - this is the look to match.
+Owner-confirmed scope rules (keep all of them):
+- Hermes writes the morning briefing; the app relays and displays it. The app generates no briefing content.
+- Every Hermes approval, clarify, and credential request is surfaced in-app and answerable there.
+- The live connection is active only while the tab is visible. No background polling.
+- The main page stays plain-language. Advanced controls live in Settings.
+- Bot Mode (profiles-as-bots, group rooms, routines) only uses capabilities the server advertises.
+- No secrets in code, docs, or chat. Config names only in `.env.example` files, with placeholders.
 
-## Verified state (as of 2026-10-30)
-- Automated tests exist but run against a stand-in mock upstream (backend/tests/fake_hermes.py),
-  NOT the live server. Passing tests prove behavior against the mock only.
-- A read-only sign-in against the live server (username+password login, then profile list /
-  status views) was reported during the prior session, but was NOT independently re-verified.
-  Treat all live-server integration as unproven until re-run.
-- The desktop UI is complete against mock state (frontend/src/state/workspace.js).
-STOPPED MID-WAY:
-- backend/hermes_ws.py - live chat WebSocket bridge, file exists but incomplete.
-- frontend/src/state/live.js - partially wired; real data not flowing end-to-end.
-NOT STARTED:
-- Live sending of messages, approval actions, morning briefing surface.
-- Bot Mode: profiles-as-bots roster, group rooms, routines.
+## Current state (2026-10-30)
 
-## Owner's answered scope choices (from the prior builder session)
-1. Hermes WRITES the morning briefing (the app does not generate the content itself).
-2. Hermes SENDS the briefing (the app relays/displays it).
-3. ALL Hermes approval choices are surfaced in the app.
-4. The connection is active ONLY while the user is watching the app (no background polling).
+### Hosting
+- Public app: https://hermesdesk.sanctrastudy.live (Cloudflare tunnel to a local Docker container).
+- Container image is built from the repo `Dockerfile` (`docker build -f Dockerfile .` in this directory).
+- Runtime: one app container on the host loopback, plus a MongoDB container on a private Docker network.
+  Runtime secrets live in an env file outside the repo (`.env.example` lists the names).
+- Upstream: `HERMES_DASHBOARD_URL` points at the owner's Hermes server (v0.22.2 at the time of checking).
 
-## Product + IA requirements (owner's complete feature set)
-- Main page stays plain-language and calm; advanced controls live in Settings.
-- Settings must carry the full advanced set: skills, memory, models, subagents, tools,
-  MCP, terminal, context, and schedules sections.
-- Bot Mode is a core goal: profiles-as-bots with a roster, group rooms, and routines.
-- Live chat with the agent, approvals surfaced in-app, morning briefing display.
-- Design: keep the existing desktop UI and follow the reference frames' direction
-  (airy macOS-style frosted glass, 3-zone layout: left icon rail, center conversation,
-  right context panel). design_guidelines.json is a useful generated summary of that
-  direction - follow the frames where the two disagree, and fix visual defects rather
-  than treating the generated file as binding. The "AuraOS" brand name in that file is
-  builder-generated, not owner-confirmed.
-- Server facts (from the live server during the prior session): Hermes server v0.22.2
-  (release 2026.9.24) at https://hermes2.sanctrastudy.live, username+password login only
-  (no token sign-in). The web dashboard exposes profile REST (/api/profiles CRUD + active
-  switch); group-room orchestration is NOT confirmed web-exposed - verify before promising.
+### Works and was checked
+- Backend unit suites: `tests/test_hermes_ws_unit.py` and `tests/test_hermes_advanced_unit.py`, 24 passed
+  in a fresh venv (`pytest-asyncio` added to `requirements.txt`).
+- Frontend: `npm ci --legacy-peer-deps` from the regenerated lockfile (official npm registry) and
+  `craco build` both succeed. The app renders in the demo shell (checked at 1440x900 in Chromium).
+- The app's read-only sign-in flow against the live Hermes server works end to end through the BFF:
+  connection status, sign-in, overview, bots (profiles, active profile, cron job list), sessions list,
+  and sign-out. No chats, sends, schedule actions, or settings were changed.
+- REST paths the BFF calls exist in the installed Hermes source (`hermes_cli/web_routers/*`), and the
+  write-request bodies match the server models.
+- WebSocket bridge (`backend/hermes_ws.py`): methods checked against the installed Hermes contract
+  (`apps/shared/src/gateway-contract.openrpc.json` and `tui_gateway/contracts/*`). The handshake uses
+  `?ticket=` from `/api/auth/ws-ticket` or `?token=`, matching the server's `_ws_auth_reason`.
+- Group rooms (`BotPanel.jsx`): the Send form appears only when `groups.capabilities` lists
+  `groups.send` in `methods`. Otherwise an explicit "not supported by this server version" note shows.
+  Request bodies were validated against the server's own pydantic models and validators (local source).
 
-## Configuration + secrets policy
-No credentials, tokens, cookies, or .env values are included in this package, by design.
-Config NAMES are in backend/.env.example and frontend/.env.example with placeholders and
-generation instructions (MONGO_URL, DB_NAME, HERMES_DASHBOARD_URL prefilled with the
-non-secret URL, AURA_UPSTREAM_KEY, AURA_SESSION_PEPPER, REACT_APP_BACKEND_URL).
-Real secret values are entered at runtime through secure fields only.
-CORS_ORIGINS=* in the example is a development placeholder - restrict it before any
-production exposure.
-Keep non-secret config (HERMES_DASHBOARD_URL, username) persisted in the app's connection
-settings so the owner is not asked to re-enter it.
+### Not verified (do not treat as working)
+- The live WebSocket path has not been exercised end to end from the browser. No live sends, approvals,
+  or room messages were tried, on purpose.
+- Group room creation and sending have not been run against the live server. Validation is against the
+  server source only, and send is gated behind the server's advertised capability.
+- Morning briefing and Bot Mode screens have not been rendered with live data.
+- The public app has only been checked in demo mode.
+- `frontend/public/` has no favicon, so the browser's `/favicon.ico` request returns 404.
 
-## First tasks
-1. Finish backend/hermes_ws.py and wire frontend/src/state/live.js fully (live read path
-   end-to-end).
-2. Live send path + approval actions (respecting the scope choices above).
-3. Morning briefing surface (Hermes writes/sends; app displays).
-4. Bot Mode groundwork (profiles roster UI; group rooms as the backend allows).
-5. Build out the Settings sections listed above.
+### Integration suites (run against an isolated stand-in, never the live server)
+Run with `backend/tests/fake_hermes.py` on a local port and the backend pointed at it. Result: 14 pass,
+7 fail. All seven failures are test-harness assumptions, not confirmed app bugs:
+- Session cookies are `Secure`, so `requests` drops them over plain HTTP. Tests that rely on the session
+  jar (`test_cookie_rotation_persisted`, `test_messages_unknown_404`, `test_logout_invalidates`,
+  `test_token_login_reads`) need explicit `cookies=` arguments.
+- `test_mongo_encrypted` reads `/app/backend/.env`, a path from the old platform layout. It should read
+  environment variables instead.
+- Rate limits are in-memory and shared per username (`user:sam`, 10/min) and per IP (5/min). Earlier tests
+  in the same run exhaust them, so `test_rate_limit_429` and `test_parallel_calls_then_after_grace` get 429.
+  Restart the backend between suites, or give each test its own username.
+
+### Known caveats
+- `ping` vs `gateway.ping`: the bridge now uses the catalog method `ping`. In the installed build,
+  `gateway.ping` has a reader-thread fast path in `tui_gateway/ws.py`, and plain `ping` goes through the
+  dispatcher queue. If heartbeats stall during long turns, switch the bridge back to `gateway.ping`, which
+  the official desktop client also sends.
+- `ModelBody` sends `confirm_expensive_model` to `/api/model/set`. The server ignores unknown fields, so
+  that confirmation is not enforced server-side. Verify before relying on it.
+- `CORS_ORIGINS` must be an exact origin list, never `*`, because the app uses credentialed cookies.
+
+## Blocked by server capability
+- Group-room send: depends on the Hermes server advertising `groups.send` in `groups.capabilities`.
+  The bridge and UI handle both cases. The installed source does register it, but the live server's
+  advertised capabilities have not been confirmed.
+
+## Source layout
+- `backend/server.py`: FastAPI app, `/api` routes, serves `frontend/build` when it exists.
+- `backend/hermes_bff.py`: the Hermes REST BFF under `/api/hermes/*`. Sign-in, encrypted session storage,
+  rate limits, and proxied reads/writes.
+- `backend/hermes_ws.py`: WebSocket JSON-RPC bridge `/api/hermes/ws`, with a method allowlist and a
+  single-use ticket per connection.
+- `backend/tests/`: unit suites (pass) and integration suites (see above).
+- `frontend/src/state/live.js` and `frontend/src/lib/hermes/*`: live data layer and socket client.
+- `frontend/src/components/desktop/*`: the three-zone UI (icon rail, conversation, context panels).
+- `design_guidelines.json`: generated summary of the design direction. The owner's reference video is the
+  primary source. Where the two disagree, follow the video.
+
+## Next steps
+1. Fix the integration-suite harness issues listed above, then re-run all suites.
+2. Confirm the live `groups.capabilities` response with a read-only WebSocket call (no sends).
+3. Render the live-mode panels (Bot Mode, Briefing, Settings) with mocked upstream data.
+4. Add a favicon, and reconcile the layout against the reference video.
