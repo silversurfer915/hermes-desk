@@ -31,6 +31,10 @@ Owner-confirmed scope rules (keep all of them):
 - Review triage (2026-10-30 PDF): confirmed demo fixtures, raw 502 copy, and the hard-coded demo badge/avatars — all
   resolved by the demo removal plus a friendlier 502–504 message in `live.js`. Tablet (≤899px) now opens the context
   panel near full-screen instead of a 420px sheet. Still open: write-control policy in live Settings (owner decision).
+- The two review-flagged profiles `hermes-app-agent` and `hermes-app-agentt` were deleted from the Hermes server at the
+  owner's request (`hermes profile delete <name> -y`; identity settled, no retry needed). Full pre-delete backup:
+  `~/hermes-app-agent-profiles-backup-20261030.tar.gz` (both profile dirs + the two `~/.local/bin` wrappers). The
+  multiplex gateway survived; the remaining roster is default, atlas, beacon, designer, sage.
 - The app's read-only sign-in flow against the live Hermes server works end to end through the BFF:
   connection status, sign-in, overview, bots (profiles, active profile, cron job list), sessions list,
   and sign-out. No chats, sends, schedule actions, or settings were changed.
